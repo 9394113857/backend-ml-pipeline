@@ -1,0 +1,157 @@
+🧪 ML PIPELINE – LOCAL + GITHUB ACTIONS (FINAL LOCKED DOC)
+Filename: ML_PIPELINE_LOCAL_AND_GITHUB_SETUP_FINAL.txt
+Author: Raghu
+Purpose: Production ML Recommendation Pipeline Automation
+Status: ✅ VERIFIED & WORKING
+===========================================================
+
+
+🧪 LOCAL TEST (MANDATORY – DO THIS FIRST)
+======================================
+
+▶ PowerShell (VS Code Terminal)
+
+1️⃣ SET ENVIRONMENT VARIABLES (LOCAL ONLY)
+
+# EVENTS DB (ML Events Service)
+$env:EVENTS_DB_URL="postgresql+psycopg2://neondb_owner:npg_GMJEZ1C5xNnc@ep-lingering-field-a1cjhhsl-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+# PRODUCT DB (Product Service)
+$env:PRODUCT_DB_URL="postgresql+psycopg2://neondb_owner:npg_EvfIxt5VdU4b@ep-blue-moon-a1jdsww9-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+# RECOMMENDATION DB (ML Target DB)
+$env:RECO_DB_URL="postgresql+psycopg2://neondb_owner:npg_zXi2xZLW4nUY@ep-dawn-sea-a1nfiljx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+# EMAIL ALERTS (GMAIL APP PASSWORD)
+$env:MAIL_USERNAME="practicesession3@gmail.com"
+$env:MAIL_PASSWORD="whcb lxws ufjk vvpm"
+
+
+2️⃣ RUN ML PIPELINE LOCALLY
+
+python pipeline/run_pipeline.py
+
+EXPECTED RESULT:
+✅ Neon recommendations table updated
+✅ Backend-ML-Recommendation-Service serves latest data
+✅ Email alert RECEIVED
+
+❌ If email not received → DO NOT PUSH
+
+
+3️⃣ CLEAR LOCAL SECRETS (VERY IMPORTANT)
+
+Remove-Item Env:EVENTS_DB_URL
+Remove-Item Env:PRODUCT_DB_URL
+Remove-Item Env:RECO_DB_URL
+Remove-Item Env:MAIL_USERNAME
+Remove-Item Env:MAIL_PASSWORD
+
+
+===========================================================
+🔐 GITHUB ACTIONS SECRETS (ADD EXACTLY AS BELOW)
+===========================================================
+
+GitHub Repo →
+Settings →
+Secrets and variables →
+Actions →
+New repository secret
+
+
+🗄 REQUIRED DATABASE SECRETS
+----------------------------
+
+Name: EVENTS_DB_URL
+Value:
+postgresql+psycopg2://neondb_owner:npg_GMJEZ1C5xNnc@ep-lingering-field-a1cjhhsl-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+
+Name: PRODUCT_DB_URL
+Value:
+postgresql+psycopg2://neondb_owner:npg_EvfIxt5VdU4b@ep-blue-moon-a1jdsww9-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+
+Name: RECO_DB_URL
+Value:
+postgresql+psycopg2://neondb_owner:npg_zXi2xZLW4nUY@ep-dawn-sea-a1nfiljx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+
+📧 OPTIONAL EMAIL ALERT SECRETS
+-------------------------------
+
+Name: MAIL_USERNAME
+Value:
+practicesession3@gmail.com
+
+
+Name: MAIL_PASSWORD
+Value:
+whcb lxws ufjk vvpm
+
+⚠️ NOTE:
+• This is a Gmail **App Password**
+• NOT your Gmail login password
+
+
+===========================================================
+🤖 WHAT HAPPENS AFTER THIS (AUTOMATION FLOW)
+===========================================================
+
+• GitHub Actions loads secrets automatically
+• Cron triggers ML pipeline (every X hours)
+• Fetches live Neon DB data
+• Builds features
+• Ranks products
+• Saves final recommendations to Neon
+• Backend serves latest recommendations
+• Angular shows personalized products
+• Success / Failure email sent automatically
+
+📌 No manual work after setup
+📌 Works forever (FREE tier)
+📌 Amazon-style batch recommender architecture
+
+
+===========================================================
+🚀 FINAL GIT COMMANDS (NEW REPO PUSH – SAFE MODE)
+===========================================================
+
+git init
+git branch -M main
+git remote add origin https://github.com/9394113857/backend-ml-pipeline.git
+
+
+4️⃣ FIRST-TIME SAFE PULL (IMPORTANT)
+
+# If GitHub repo already has README / LICENSE:
+git pull origin main --allow-unrelated-histories
+
+# If repo is totally empty:
+# (Skip this step)
+
+
+5️⃣ COMMIT & PUSH
+
+git add .
+git commit -m "Add production ML recommendation pipeline with cron and email alerts"
+git push --set-upstream origin main
+
+# ONLY if Git complains about history:
+git push --set-upstream origin main --force
+
+
+===========================================================
+🧠 IMPORTANT RULES (LOCK THIS)
+===========================================================
+
+✅ NEVER commit secrets
+✅ ALWAYS test locally before push
+✅ If email arrives → safe to deploy
+✅ One entry point → pipeline/run_pipeline.py
+✅ This architecture is interview-grade
+✅ Mirrors real-world ML batch systems
+
+===========================================================
+🎯 STATUS: FINAL • STABLE • PRODUCTION READY
+===========================================================
