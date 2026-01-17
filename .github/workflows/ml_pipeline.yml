@@ -3,7 +3,7 @@ name: ML Recommendation Pipeline
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"   # Every 6 hours
+    - cron: "0 */3 * * *"   # Every 3 hours (UTC)
   push:
     branches:
       - main
