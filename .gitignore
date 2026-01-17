@@ -1,0 +1,66 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+*.eggs
+
+# IDE / Editor settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# Python package manager folders
+pip-wheel-metadata/
+pip-cache-*
+
+# Caches
+.cache/
+*.cache
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Data files (if any large datasets are being created at runtime)
+# Uncomment as needed
+# data/
+# pipeline/data/
+# *.csv
+# *.parquet
+
+# Model artifacts / pickles / weights
+*.pkl
+*.joblib
+*.h5
+*.pt
+
+# Sensitive config / env files
+.env
+.env.*
+
+# Outputs
+*.out
+*.result
