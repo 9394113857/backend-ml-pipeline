@@ -1,129 +1,62 @@
 # =====================================================
 # WORKFLOW NAME
-# This is the name shown in GitHub Actions UI
 # =====================================================
 name: ML Recommendation Pipeline
 
 # =====================================================
-# WHEN SHOULD THIS WORKFLOW RUN?
+# TRIGGERS
 # =====================================================
 on:
-  # ---------------------------------------------------
-  # 1️⃣ Manual Trigger
-  # Allows running pipeline manually from GitHub UI
-  # Useful for testing, debugging, or emergency reruns
-  # ---------------------------------------------------
   workflow_dispatch:
 
-  # ---------------------------------------------------
-  # 2️⃣ Scheduled Trigger (CRON)
-  # Runs automatically once per day
-  #
-  # Cron time is in UTC
-  # 2:00 AM IST = 8:30 PM UTC (previous day)
-  #
-  # Format: minute hour day month weekday
-  # ---------------------------------------------------
+  # Runs daily at 2:00 AM IST (8:30 PM UTC)
   schedule:
-    - cron: "30 20 * * *"   # ✅ Daily at 2:00 AM IST
+    - cron: "30 20 * * *"
 
-  # ---------------------------------------------------
-  # 3️⃣ Push Trigger (Development Only)
-  # Runs pipeline when code is pushed to main branch
-  # Remove in production if not required
-  # ---------------------------------------------------
   push:
     branches:
       - main
 
 # =====================================================
-# JOBS SECTION
+# JOBS
 # =====================================================
 jobs:
-
-  # ---------------------------------------------------
-  # JOB: run-ml-pipeline
-  # This single job runs the complete ML pipeline
-  # ---------------------------------------------------
   run-ml-pipeline:
 
-    # -------------------------------------------------
-    # Runner Machine
-    # Uses GitHub-hosted Ubuntu virtual machine
-    # -------------------------------------------------
+    # GitHub-hosted Ubuntu runner
     runs-on: ubuntu-latest
 
-    # =================================================
-    # STEPS EXECUTED INSIDE THIS JOB
-    # =================================================
     steps:
 
-      # ------------------------------------------------
-      # STEP 1️⃣: CHECKOUT SOURCE CODE
-      # Downloads repository code to the runner
-      # ------------------------------------------------
-      - name: Checkout code
+      # Step 1: Checkout code
+      - name: 📦 Checkout code
         uses: actions/checkout@v3
 
-      # ------------------------------------------------
-      # STEP 2️⃣: SETUP PYTHON ENVIRONMENT
-      # Installs Python 3.11 on runner
-      # ------------------------------------------------
-      - name: Setup Python
+      # Step 2: Setup Python
+      - name: 🐍 Setup Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      # ------------------------------------------------
-      # STEP 3️⃣: INSTALL DEPENDENCIES
-      # Installs all required Python packages
-      # requirements.txt should contain:
-      # pandas, numpy, sqlalchemy, sklearn, etc.
-      # ------------------------------------------------
-      - name: Install dependencies
+      # Step 3: Install dependencies
+      - name: 📚 Install dependencies
         run: |
+          echo "Installing dependencies..."
           pip install --upgrade pip
           pip install -r requirements.txt
+          echo "Dependencies installed"
 
-      # ------------------------------------------------
-      # STEP 4️⃣: RUN ML PIPELINE SCRIPT
-      #
-      # This executes the main ML pipeline file:
-      #     pipeline/run_pipeline.py
-      #
-      # ================================
-      # 🔐 ENVIRONMENT VARIABLES
-      # ================================
-      #
-      # EVENTS_DB_URL   → User events database
-      # PRODUCT_DB_URL  → Product catalog database
-      # RECO_DB_URL     → Recommendations database
-      #
-      # MAIL_USERNAME   → Email sender account
-      # MAIL_PASSWORD   → Email app password
-      #
-      # MAIL_CC         → CC recipient email
-      #                   (Same logic used in Auth,
-      #                    Product, and Cart workflows)
-      #
-      # All secret values are securely stored
-      # inside GitHub Repository Secrets
-      # Settings → Secrets and Variables → Actions
-      # ------------------------------------------------
-      - name: Run ML Pipeline
+      # Step 4: Run ML pipeline
+      - name: 🚀 Run ML Pipeline
         env:
           EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
           PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
           RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-
-          # ------------------------------------------------
-          # 📧 CC Email Address
-          # This ensures ML pipeline notifications
-          # are also sent to this email
-          # ------------------------------------------------
-          MAIL_CC: raghunadhbr@gmail.com
+          MAIL_CC: ${{ secrets.MAIL_CC }}
 
         run: |
+          echo "Starting ML pipeline..."
           python pipeline/run_pipeline.py
+          echo "Pipeline execution completed"
