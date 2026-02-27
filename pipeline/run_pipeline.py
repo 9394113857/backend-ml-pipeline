@@ -14,7 +14,7 @@ print(f"🕒 Start Time (UTC): {PIPELINE_START}")
 print("-" * 60)
 
 # =========================
-# ENV CONFIG
+# ENV CONFIG (All Dynamic)
 # =========================
 EVENTS_DB_URL = os.getenv("EVENTS_DB_URL")
 PRODUCT_DB_URL = os.getenv("PRODUCT_DB_URL")
@@ -22,6 +22,7 @@ RECO_DB_URL = os.getenv("RECO_DB_URL")
 
 MAIL_USERNAME = os.getenv("MAIL_USERNAME")
 MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+MAIL_CC = os.getenv("MAIL_CC")
 
 MODEL_VERSION = "v1_weighted_events"
 TOP_K = 10
@@ -45,31 +46,25 @@ print("✅ Database connections established")
 print("-" * 60)
 
 # =========================
-# STEP 1: FETCH EVENTS
+# STEP 1: FETCH DATA
 # =========================
 print("📥 Fetching user events...")
 
-events_df = pd.read_sql(
-    """
+events_df = pd.read_sql("""
     SELECT user_id, event_type, object_id
     FROM user_events
     WHERE user_id IS NOT NULL
       AND object_type = 'product'
-    """,
-    events_engine
-)
+""", events_engine)
 
 print(f"✅ Events fetched: {len(events_df)} rows")
 
 print("📥 Fetching products...")
 
-products_df = pd.read_sql(
-    """
+products_df = pd.read_sql("""
     SELECT id, name, category, price
     FROM products
-    """,
-    product_engine
-)
+""", product_engine)
 
 print(f"✅ Products fetched: {len(products_df)} rows")
 print("-" * 60)
@@ -96,7 +91,6 @@ features_df = (
     .rename(columns={"object_id": "product_id"})
 )
 
-# Data type safety
 features_df["product_id"] = pd.to_numeric(
     features_df["product_id"], errors="coerce"
 )
@@ -151,7 +145,7 @@ print(f"✅ Final rows ready: {len(final_df)}")
 print("-" * 60)
 
 # =========================
-# STEP 5: SAFE SAVE (🔥 IMPORTANT)
+# STEP 5: SAFE SAVE
 # =========================
 print("♻ Cleaning old recommendations for this model version...")
 
@@ -169,7 +163,7 @@ print("💾 Inserting new recommendations...")
 final_df.to_sql(
     "recommendations",
     reco_engine,
-    if_exists="append",   # ✅ NEVER replace
+    if_exists="append",
     index=False
 )
 
@@ -182,10 +176,14 @@ print("-" * 60)
 print("📧 Sending email alert...")
 
 if MAIL_USERNAME and MAIL_PASSWORD:
+
     msg = EmailMessage()
     msg["Subject"] = f"✅ ML Pipeline Success | {MODEL_VERSION}"
     msg["From"] = MAIL_USERNAME
     msg["To"] = MAIL_USERNAME
+
+    if MAIL_CC:
+        msg["Cc"] = MAIL_CC
 
     msg.set_content(f"""
 ML Recommendation Pipeline Completed 🚀
@@ -198,11 +196,15 @@ Run Time      : {datetime.utcnow()}
 Status        : SUCCESS ✅
 """)
 
+    recipients = [MAIL_USERNAME]
+    if MAIL_CC:
+        recipients.append(MAIL_CC)
+
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(MAIL_USERNAME, MAIL_PASSWORD)
-        server.send_message(msg)
+        server.send_message(msg, to_addrs=recipients)
 
-    print("📨 Email sent")
+    print("📨 Email sent successfully (including CC)")
 else:
     print("ℹ️ Email skipped (credentials not set)")
 
