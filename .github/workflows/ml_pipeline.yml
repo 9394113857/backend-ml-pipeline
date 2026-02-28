@@ -9,9 +9,9 @@ name: ML Recommendation Pipeline
 on:
   workflow_dispatch:
 
-  # Runs daily at 2:00 AM IST (8:30 PM UTC)
+  # Runs daily at 3:30 AM IST (10:00 PM UTC)
   schedule:
-    - cron: "30 20 * * *"
+    - cron: "0 22 * * *"  # 10:00 PM UTC = 3:30 AM IST
 
   push:
     branches:
