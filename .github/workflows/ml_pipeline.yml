@@ -9,9 +9,9 @@ name: ML Recommendation Pipeline
 on:
   workflow_dispatch:
 
-  # Runs daily at 3:30 AM IST (10:00 PM UTC)
+  # Runs daily at 4:00 AM IST (10:30 PM UTC)
   schedule:
-    - cron: "0 22 * * *"  # 10:00 PM UTC = 3:30 AM IST
+    - cron: "30 22 * * *"  # 10:30 PM UTC = 4:00 AM IST
 
   push:
     branches:
@@ -55,7 +55,7 @@ jobs:
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           MAIL_CC: ${{ secrets.MAIL_CC }}
-
+        
         run: |
           echo "Starting ML pipeline..."
           python pipeline/run_pipeline.py
