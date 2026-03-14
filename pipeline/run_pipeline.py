@@ -1,21 +1,25 @@
-```python
 # ==================================================
-# ML RECOMMENDATION PIPELINE (ENHANCED VERSION)
+
+# ML RECOMMENDATION PIPELINE (FINAL VERSION)
+
 # ==================================================
-# This pipeline generates product recommendations
-# using weighted user interaction events.
-#
-# Improvements Added:
-# 1. Top-K filtering
-# 2. Remove already purchased products
-# 3. Cold start handling
-# 4. Trending products fallback
-# 5. New arrivals fallback
-# 6. Detailed logging
-#
-# Compatible with:
-# - GitHub Actions scheduled workflow
-# - Angular frontend recommendation API
+
+# Features implemented:
+
+# 1. Weighted event scoring
+
+# 2. Top-K recommendation filtering
+
+# 3. Remove already purchased products
+
+# 4. Cold start fallback (Trending products)
+
+# 5. Safe database refresh
+
+# 6. Email notification
+
+# 7. GitHub Actions compatible
+
 # ==================================================
 
 import os
@@ -26,7 +30,9 @@ import smtplib
 from email.message import EmailMessage
 
 # ==================================================
+
 # PIPELINE START
+
 # ==================================================
 
 PIPELINE_START = datetime.utcnow()
@@ -35,7 +41,9 @@ print(f"Start Time (UTC): {PIPELINE_START}")
 print("=" * 60)
 
 # ==================================================
+
 # ENVIRONMENT VARIABLES
+
 # ==================================================
 
 EVENTS_DB_URL = os.getenv("EVENTS_DB_URL")
@@ -47,34 +55,36 @@ MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
 MAIL_CC = os.getenv("MAIL_CC")
 
 MODEL_VERSION = "v2_weighted_events_with_fallback"
-
-# Top recommendations per user
 TOP_K = 5
 
 assert EVENTS_DB_URL, "EVENTS_DB_URL missing"
 assert PRODUCT_DB_URL, "PRODUCT_DB_URL missing"
 assert RECO_DB_URL, "RECO_DB_URL missing"
 
-print("Environment variables loaded")
+print("✅ Environment variables loaded")
 print(f"Model Version: {MODEL_VERSION}")
 print("=" * 60)
 
 # ==================================================
+
 # DATABASE CONNECTIONS
+
 # ==================================================
 
 events_engine = create_engine(EVENTS_DB_URL)
 product_engine = create_engine(PRODUCT_DB_URL)
 reco_engine = create_engine(RECO_DB_URL)
 
-print("Database connections established")
+print("✅ Database connections established")
 print("=" * 60)
 
 # ==================================================
-# STEP 1: FETCH DATA
+
+# STEP 1: FETCH USER EVENTS
+
 # ==================================================
 
-print("Fetching user events...")
+print("📥 Fetching user events...")
 
 events_df = pd.read_sql("""
 SELECT user_id, event_type, object_id
@@ -85,7 +95,13 @@ AND object_type = 'product'
 
 print(f"Events fetched: {len(events_df)} rows")
 
-print("Fetching product catalog...")
+# ==================================================
+
+# STEP 2: FETCH PRODUCTS
+
+# ==================================================
+
+print("📥 Fetching products...")
 
 products_df = pd.read_sql("""
 SELECT id, name, category, price
@@ -96,31 +112,32 @@ print(f"Products fetched: {len(products_df)}")
 print("=" * 60)
 
 # ==================================================
-# STEP 2: FEATURE ENGINEERING
-# ==================================================
-# Convert user interactions into weighted scores
+
+# STEP 3: FEATURE ENGINEERING
+
 # ==================================================
 
-print("Generating weighted event scores...")
+# Convert events into weighted scores
+
+# ==================================================
 
 EVENT_WEIGHTS = {
-    "view_product": 1,
-    "add_to_cart": 3,
-    "checkout": 5,
-    "remove_from_cart": -2
+"view_product": 1,
+"add_to_cart": 3,
+"checkout": 5,
+"remove_from_cart": -2
 }
 
 events_df["score"] = events_df["event_type"].map(EVENT_WEIGHTS).fillna(0)
 
 features_df = (
-    events_df
-    .groupby(["user_id", "object_id"])["score"]
-    .sum()
-    .reset_index()
-    .rename(columns={"object_id": "product_id"})
+events_df
+.groupby(["user_id", "object_id"])["score"]
+.sum()
+.reset_index()
+.rename(columns={"object_id": "product_id"})
 )
 
-# Clean product IDs
 features_df["product_id"] = pd.to_numeric(features_df["product_id"], errors="coerce")
 features_df = features_df.dropna(subset=["product_id"])
 features_df["product_id"] = features_df["product_id"].astype(int)
@@ -129,15 +146,15 @@ print(f"Feature rows generated: {len(features_df)}")
 print("=" * 60)
 
 # ==================================================
-# STEP 3: RANK PRODUCTS PER USER
+
+# STEP 4: RANK PRODUCTS PER USER
+
 # ==================================================
 
-print("Ranking products for each user...")
-
 features_df["rank"] = (
-    features_df
-    .groupby("user_id")["score"]
-    .rank(method="first", ascending=False)
+features_df
+.groupby("user_id")["score"]
+.rank(method="first", ascending=False)
 )
 
 ranked_df = features_df[features_df["rank"] <= TOP_K]
@@ -147,72 +164,73 @@ print(f"Users covered: {ranked_df['user_id'].nunique()}")
 print("=" * 60)
 
 # ==================================================
-# STEP 4: REMOVE ALREADY PURCHASED PRODUCTS
+
+# STEP 5: REMOVE PURCHASED PRODUCTS
+
 # ==================================================
 
-print("Removing already purchased products...")
+print("Removing purchased products from recommendations...")
 
 purchased = events_df[
-    events_df["event_type"] == "checkout"
+events_df["event_type"] == "checkout"
 ][["user_id", "object_id"]]
 
 purchased = purchased.rename(columns={"object_id": "product_id"})
 
 ranked_df = ranked_df.merge(
-    purchased,
-    on=["user_id", "product_id"],
-    how="left",
-    indicator=True
+purchased,
+on=["user_id", "product_id"],
+how="left",
+indicator=True
 )
 
 ranked_df = ranked_df[ranked_df["_merge"] == "left_only"]
 ranked_df = ranked_df.drop(columns=["_merge"])
 
-print("Purchased products removed from recommendations")
+print("Purchased products removed")
 print("=" * 60)
 
 # ==================================================
-# STEP 5: COLD START FALLBACK
-# ==================================================
-# For users with no events
-# Recommend trending products
-# ==================================================
 
-print("Handling cold-start users...")
+# STEP 6: COLD START FALLBACK
+
+# ==================================================
 
 if ranked_df.empty:
 
-    print("No personalized recommendations found.")
-    print("Using trending products fallback.")
+```
+print("⚠ No personalized recommendations found")
+print("Using trending products fallback")
 
-    trending_df = pd.read_sql("""
-    SELECT object_id AS product_id, COUNT(*) AS score
-    FROM user_events
-    WHERE object_type='product'
-    GROUP BY object_id
-    ORDER BY score DESC
-    LIMIT 5
-    """, events_engine)
+trending_df = pd.read_sql("""
+SELECT object_id AS product_id, COUNT(*) AS score
+FROM user_events
+WHERE object_type='product'
+GROUP BY object_id
+ORDER BY score DESC
+LIMIT 5
+""", events_engine)
 
-    trending_df["user_id"] = 0
-    trending_df["rank"] = range(1, len(trending_df) + 1)
+trending_df["user_id"] = 0
+trending_df["rank"] = range(1, len(trending_df) + 1)
 
-    ranked_df = trending_df
+ranked_df = trending_df
+```
 
-print("Fallback check completed")
+print("Fallback logic executed")
 print("=" * 60)
 
 # ==================================================
-# STEP 6: PREPARE FINAL DATASET
+
+# STEP 7: PREPARE FINAL DATASET
+
 # ==================================================
 
-print("Preparing final dataset...")
-
 final_df = ranked_df.merge(
-    products_df,
-    left_on="product_id",
-    right_on="id",
-    how="left"
+products_df,
+left_on="product_id",
+right_on="id",
+how="left"
 )
 
 final_df["model_version"] = MODEL_VERSION
@@ -229,87 +247,93 @@ final_df = final_df[
 ]
 ]
 
-print(f"Final rows ready: {len(final_df)}")
+print(f"Final rows prepared: {len(final_df)}")
 print("=" * 60)
 
 # ==================================================
-# STEP 7: SAVE RECOMMENDATIONS
+
+# STEP 8: SAVE RECOMMENDATIONS
+
 # ==================================================
 
-print("Cleaning previous recommendations for this model version...")
+print("Cleaning previous recommendations...")
 
 with reco_engine.begin() as conn:
-    conn.execute(
-        text("""
-        DELETE FROM recommendations
-        WHERE model_version = :version
-        """),
-        {"version": MODEL_VERSION}
-    )
+conn.execute(
+text("""
+DELETE FROM recommendations
+WHERE model_version = :version
+"""),
+{"version": MODEL_VERSION}
+)
 
 print("Saving new recommendations...")
 
 final_df.to_sql(
-    "recommendations",
-    reco_engine,
-    if_exists="append",
-    index=False
+"recommendations",
+reco_engine,
+if_exists="append",
+index=False
 )
 
-print("Recommendations successfully refreshed")
+print("Recommendations saved successfully")
 print("=" * 60)
 
 # ==================================================
-# STEP 8: EMAIL ALERT
-# ==================================================
 
-print("Sending pipeline completion email...")
+# STEP 9: EMAIL ALERT
+
+# ==================================================
 
 if MAIL_USERNAME and MAIL_PASSWORD:
 
-    msg = EmailMessage()
+```
+msg = EmailMessage()
+msg["Subject"] = f"ML Pipeline Success | {MODEL_VERSION}"
+msg["From"] = MAIL_USERNAME
+msg["To"] = MAIL_USERNAME
 
-    msg["Subject"] = f"ML Pipeline Success | {MODEL_VERSION}"
-    msg["From"] = MAIL_USERNAME
-    msg["To"] = MAIL_USERNAME
+if MAIL_CC:
+    msg["Cc"] = MAIL_CC
 
-    if MAIL_CC:
-        msg["Cc"] = MAIL_CC
+msg.set_content(f"""
+```
 
-    msg.set_content(f"""
-ML Recommendation Pipeline Completed Successfully
+ML Recommendation Pipeline Completed
 
 Model Version : {MODEL_VERSION}
 Users Covered : {final_df['user_id'].nunique()}
 Rows Inserted : {len(final_df)}
-Run Time      : {datetime.utcnow()}
 
 Status : SUCCESS
 """)
 
-    recipients = [MAIL_USERNAME]
+```
+recipients = [MAIL_USERNAME]
 
-    if MAIL_CC:
-        recipients.append(MAIL_CC)
+if MAIL_CC:
+    recipients.append(MAIL_CC)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(MAIL_USERNAME, MAIL_PASSWORD)
-        server.send_message(msg, to_addrs=recipients)
+with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+    server.login(MAIL_USERNAME, MAIL_PASSWORD)
+    server.send_message(msg, to_addrs=recipients)
 
-    print("Email sent successfully")
+print("Email sent successfully")
+```
 
 else:
-    print("Email skipped")
+print("Email skipped")
 
 # ==================================================
+
 # PIPELINE END
+
 # ==================================================
 
 PIPELINE_END = datetime.utcnow()
 
 print("=" * 60)
-print("ML PIPELINE COMPLETED")
+print("🏁 ML PIPELINE COMPLETED")
 print(f"End Time: {PIPELINE_END}")
 print(f"Duration: {PIPELINE_END - PIPELINE_START}")
-print("ALL STEPS COMPLETED SUCCESSFULLY")
-```
+print("✅ ALL STEPS EXECUTED SUCCESSFULLY")
