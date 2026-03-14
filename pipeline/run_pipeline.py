@@ -1,27 +1,3 @@
-# ==================================================
-
-# ML RECOMMENDATION PIPELINE (FINAL VERSION)
-
-# ==================================================
-
-# Features implemented:
-
-# 1. Weighted event scoring
-
-# 2. Top-K recommendation filtering
-
-# 3. Remove already purchased products
-
-# 4. Cold start fallback (Trending products)
-
-# 5. Safe database refresh
-
-# 6. Email notification
-
-# 7. GitHub Actions compatible
-
-# ==================================================
-
 import os
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -29,22 +5,20 @@ from datetime import datetime
 import smtplib
 from email.message import EmailMessage
 
-# ==================================================
+# ===============================
 
-# PIPELINE START
+# Pipeline start
 
-# ==================================================
+# ===============================
 
 PIPELINE_START = datetime.utcnow()
-print("🚀 ML PIPELINE STARTED")
-print(f"Start Time (UTC): {PIPELINE_START}")
-print("=" * 60)
+print("ML PIPELINE STARTED")
 
-# ==================================================
+# ===============================
 
-# ENVIRONMENT VARIABLES
+# Environment variables
 
-# ==================================================
+# ===============================
 
 EVENTS_DB_URL = os.getenv("EVENTS_DB_URL")
 PRODUCT_DB_URL = os.getenv("PRODUCT_DB_URL")
@@ -54,37 +28,24 @@ MAIL_USERNAME = os.getenv("MAIL_USERNAME")
 MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
 MAIL_CC = os.getenv("MAIL_CC")
 
-MODEL_VERSION = "v2_weighted_events_with_fallback"
-TOP_K = 5
+MODEL_VERSION = "v2_weighted_events"
+TOP_K = 5   # number of recommendations per user
 
-assert EVENTS_DB_URL, "EVENTS_DB_URL missing"
-assert PRODUCT_DB_URL, "PRODUCT_DB_URL missing"
-assert RECO_DB_URL, "RECO_DB_URL missing"
+# ===============================
 
-print("✅ Environment variables loaded")
-print(f"Model Version: {MODEL_VERSION}")
-print("=" * 60)
+# Database connections
 
-# ==================================================
-
-# DATABASE CONNECTIONS
-
-# ==================================================
+# ===============================
 
 events_engine = create_engine(EVENTS_DB_URL)
 product_engine = create_engine(PRODUCT_DB_URL)
 reco_engine = create_engine(RECO_DB_URL)
 
-print("✅ Database connections established")
-print("=" * 60)
+# ===============================
 
-# ==================================================
+# Fetch user events
 
-# STEP 1: FETCH USER EVENTS
-
-# ==================================================
-
-print("📥 Fetching user events...")
+# ===============================
 
 events_df = pd.read_sql("""
 SELECT user_id, event_type, object_id
@@ -93,33 +54,26 @@ WHERE user_id IS NOT NULL
 AND object_type = 'product'
 """, events_engine)
 
-print(f"Events fetched: {len(events_df)} rows")
+print("Events rows:", len(events_df))
 
-# ==================================================
+# ===============================
 
-# STEP 2: FETCH PRODUCTS
+# Fetch product catalog
 
-# ==================================================
-
-print("📥 Fetching products...")
+# ===============================
 
 products_df = pd.read_sql("""
 SELECT id, name, category, price
 FROM products
 """, product_engine)
 
-print(f"Products fetched: {len(products_df)}")
-print("=" * 60)
+print("Products:", len(products_df))
 
-# ==================================================
+# ===============================
 
-# STEP 3: FEATURE ENGINEERING
+# Event weights
 
-# ==================================================
-
-# Convert events into weighted scores
-
-# ==================================================
+# ===============================
 
 EVENT_WEIGHTS = {
 "view_product": 1,
@@ -128,7 +82,15 @@ EVENT_WEIGHTS = {
 "remove_from_cart": -2
 }
 
+# Convert events to score
+
 events_df["score"] = events_df["event_type"].map(EVENT_WEIGHTS).fillna(0)
+
+# ===============================
+
+# Aggregate scores per user-product
+
+# ===============================
 
 features_df = (
 events_df
@@ -138,18 +100,17 @@ events_df
 .rename(columns={"object_id": "product_id"})
 )
 
+# Clean product id
+
 features_df["product_id"] = pd.to_numeric(features_df["product_id"], errors="coerce")
 features_df = features_df.dropna(subset=["product_id"])
 features_df["product_id"] = features_df["product_id"].astype(int)
 
-print(f"Feature rows generated: {len(features_df)}")
-print("=" * 60)
+# ===============================
 
-# ==================================================
+# Rank products per user
 
-# STEP 4: RANK PRODUCTS PER USER
-
-# ==================================================
+# ===============================
 
 features_df["rank"] = (
 features_df
@@ -159,17 +120,11 @@ features_df
 
 ranked_df = features_df[features_df["rank"] <= TOP_K]
 
-print(f"Ranked rows: {len(ranked_df)}")
-print(f"Users covered: {ranked_df['user_id'].nunique()}")
-print("=" * 60)
+# ===============================
 
-# ==================================================
+# Remove already purchased items
 
-# STEP 5: REMOVE PURCHASED PRODUCTS
-
-# ==================================================
-
-print("Removing purchased products from recommendations...")
+# ===============================
 
 purchased = events_df[
 events_df["event_type"] == "checkout"
@@ -187,20 +142,16 @@ indicator=True
 ranked_df = ranked_df[ranked_df["_merge"] == "left_only"]
 ranked_df = ranked_df.drop(columns=["_merge"])
 
-print("Purchased products removed")
-print("=" * 60)
+# ===============================
 
-# ==================================================
+# Cold start fallback
 
-# STEP 6: COLD START FALLBACK
-
-# ==================================================
+# ===============================
 
 if ranked_df.empty:
 
 ```
-print("⚠ No personalized recommendations found")
-print("Using trending products fallback")
+print("Using trending fallback")
 
 trending_df = pd.read_sql("""
 SELECT object_id AS product_id, COUNT(*) AS score
@@ -217,14 +168,11 @@ trending_df["rank"] = range(1, len(trending_df) + 1)
 ranked_df = trending_df
 ```
 
-print("Fallback logic executed")
-print("=" * 60)
+# ===============================
 
-# ==================================================
+# Prepare final dataset
 
-# STEP 7: PREPARE FINAL DATASET
-
-# ==================================================
+# ===============================
 
 final_df = ranked_df.merge(
 products_df,
@@ -236,27 +184,22 @@ how="left"
 final_df["model_version"] = MODEL_VERSION
 final_df["created_at"] = datetime.utcnow()
 
-final_df = final_df[
-[
+final_df = final_df[[
 "user_id",
 "product_id",
 "score",
 "rank",
 "model_version",
 "created_at"
-]
-]
+]]
 
-print(f"Final rows prepared: {len(final_df)}")
-print("=" * 60)
+print("Final rows:", len(final_df))
 
-# ==================================================
+# ===============================
 
-# STEP 8: SAVE RECOMMENDATIONS
+# Refresh recommendations table
 
-# ==================================================
-
-print("Cleaning previous recommendations...")
+# ===============================
 
 with reco_engine.begin() as conn:
 conn.execute(
@@ -267,7 +210,7 @@ WHERE model_version = :version
 {"version": MODEL_VERSION}
 )
 
-print("Saving new recommendations...")
+# Insert new recommendations
 
 final_df.to_sql(
 "recommendations",
@@ -276,39 +219,30 @@ if_exists="append",
 index=False
 )
 
-print("Recommendations saved successfully")
-print("=" * 60)
+print("Recommendations saved")
 
-# ==================================================
+# ===============================
 
-# STEP 9: EMAIL ALERT
+# Send email notification
 
-# ==================================================
+# ===============================
 
 if MAIL_USERNAME and MAIL_PASSWORD:
 
 ```
 msg = EmailMessage()
-msg["Subject"] = f"ML Pipeline Success | {MODEL_VERSION}"
+
+msg["Subject"] = "ML Pipeline Success"
 msg["From"] = MAIL_USERNAME
 msg["To"] = MAIL_USERNAME
 
 if MAIL_CC:
     msg["Cc"] = MAIL_CC
 
-msg.set_content(f"""
-```
+msg.set_content(
+    f"ML pipeline finished\nUsers: {final_df['user_id'].nunique()}\nRows: {len(final_df)}"
+)
 
-ML Recommendation Pipeline Completed
-
-Model Version : {MODEL_VERSION}
-Users Covered : {final_df['user_id'].nunique()}
-Rows Inserted : {len(final_df)}
-
-Status : SUCCESS
-""")
-
-```
 recipients = [MAIL_USERNAME]
 
 if MAIL_CC:
@@ -318,22 +252,16 @@ with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
     server.login(MAIL_USERNAME, MAIL_PASSWORD)
     server.send_message(msg, to_addrs=recipients)
 
-print("Email sent successfully")
+print("Email sent")
 ```
 
-else:
-print("Email skipped")
+# ===============================
 
-# ==================================================
+# Pipeline end
 
-# PIPELINE END
-
-# ==================================================
+# ===============================
 
 PIPELINE_END = datetime.utcnow()
 
-print("=" * 60)
-print("🏁 ML PIPELINE COMPLETED")
-print(f"End Time: {PIPELINE_END}")
-print(f"Duration: {PIPELINE_END - PIPELINE_START}")
-print("✅ ALL STEPS EXECUTED SUCCESSFULLY")
+print("ML PIPELINE COMPLETED")
+print("Duration:", PIPELINE_END - PIPELINE_START)
