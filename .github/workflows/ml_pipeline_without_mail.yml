@@ -1,21 +1,13 @@
 # =====================================================
 # WORKFLOW NAME
 # =====================================================
-name: ML Recommendation Pipeline No Mail
+name: ML Recommendation Pipeline (Manual Only)
 
 # =====================================================
-# TRIGGERS
+# TRIGGER (ONLY MANUAL)
 # =====================================================
 on:
   workflow_dispatch:
-
-  # Runs daily at 4:00 AM IST (10:30 PM UTC)
-  schedule:
-    - cron: "30 22 * * *"
-
-  push:
-    branches:
-      - main
 
 # =====================================================
 # JOBS
@@ -23,7 +15,6 @@ on:
 jobs:
   recommendation-pipeline:
 
-    # GitHub-hosted Ubuntu runner
     runs-on: ubuntu-latest
 
     steps:
@@ -47,32 +38,53 @@ jobs:
       # =====================================================
       - name: 📚 Install Dependencies
         run: |
-          echo "Installing dependencies..."
+          echo "📦 Installing dependencies..."
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          echo "Dependencies installed successfully"
+          echo "✅ Dependencies installed"
 
       # =====================================================
       # STEP 4: RUN ML PIPELINE
       # =====================================================
       - name: 🚀 Run Recommendation Pipeline
         env:
-          # ✅ FIXED VARIABLE NAMES (MATCH PYTHON CODE)
           EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
           PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
           RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
 
         run: |
-          echo "🚀 Starting ML pipeline..."
+          echo "========================================"
+          echo "🚀 ML PIPELINE STARTED"
+          echo "========================================"
+          date
 
-          # Debug (optional - can remove later)
-          echo "Checking env variables..."
-          if [ -z "$EVENTS_DB_URL" ]; then echo "❌ EVENTS_DB_URL missing"; exit 1; fi
-          if [ -z "$PRODUCT_DB_URL" ]; then echo "❌ PRODUCT_DB_URL missing"; exit 1; fi
-          if [ -z "$RECO_DB_URL" ]; then echo "❌ RECO_DB_URL missing"; exit 1; fi
+          # 🔍 Validate environment variables
+          echo "🔍 Validating environment variables..."
 
-          echo "✅ All env variables present"
+          if [ -z "$EVENTS_DB_URL" ]; then
+            echo "❌ EVENTS_DB_URL missing"
+            exit 1
+          fi
+
+          if [ -z "$PRODUCT_DB_URL" ]; then
+            echo "❌ PRODUCT_DB_URL missing"
+            exit 1
+          fi
+
+          if [ -z "$RECO_DB_URL" ]; then
+            echo "❌ RECO_DB_URL missing"
+            exit 1
+          fi
+
+          echo "✅ All environment variables are set"
+
+          echo "----------------------------------------"
+          echo "⚙️ Running ML pipeline script..."
+          echo "----------------------------------------"
 
           python pipeline/run_pipeline.py
 
-          echo "🎉 Pipeline execution completed successfully"
+          echo "----------------------------------------"
+          echo "🎉 ML PIPELINE COMPLETED SUCCESSFULLY"
+          echo "----------------------------------------"
+          date
