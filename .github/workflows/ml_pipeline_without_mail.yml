@@ -1,21 +1,13 @@
 # =====================================================
 # WORKFLOW NAME
 # =====================================================
-name: ML Recommendation Pipeline No Mail
+name: ML Recommendation Pipeline
 
 # =====================================================
 # TRIGGERS
 # =====================================================
 on:
   workflow_dispatch:
-
-  # Runs daily at 4:00 AM IST (10:30 PM UTC)
-  schedule:
-    - cron: "30 22 * * *"
-
-  push:
-    branches:
-      - main
 
 # =====================================================
 # JOBS
