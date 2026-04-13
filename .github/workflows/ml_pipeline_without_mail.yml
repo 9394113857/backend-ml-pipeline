@@ -1,7 +1,7 @@
 # =====================================================
 # WORKFLOW NAME
 # =====================================================
-name: ML Recommendation Pipeline
+name: ML Recommendation Pipeline Without Mail
 
 # =====================================================
 # TRIGGERS
