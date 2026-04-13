@@ -1,13 +1,21 @@
 # =====================================================
 # WORKFLOW NAME
 # =====================================================
-name: ML Recommendation Pipeline Without Mail
+name: ML Recommendation Pipeline No Mail
 
 # =====================================================
 # TRIGGERS
 # =====================================================
 on:
   workflow_dispatch:
+
+  # Runs daily at 4:00 AM IST (10:30 PM UTC)
+  schedule:
+    - cron: "30 22 * * *"
+
+  push:
+    branches:
+      - main
 
 # =====================================================
 # JOBS
@@ -20,32 +28,51 @@ jobs:
 
     steps:
 
-      # Step 1: Checkout code
+      # =====================================================
+      # STEP 1: CHECKOUT CODE
+      # =====================================================
       - name: 📦 Checkout Code
         uses: actions/checkout@v3
 
-      # Step 2: Setup Python
+      # =====================================================
+      # STEP 2: SETUP PYTHON
+      # =====================================================
       - name: 🐍 Setup Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      # Step 3: Install dependencies
+      # =====================================================
+      # STEP 3: INSTALL DEPENDENCIES
+      # =====================================================
       - name: 📚 Install Dependencies
         run: |
           echo "Installing dependencies..."
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
-          echo "Dependencies installed"
+          echo "Dependencies installed successfully"
 
-      # Step 4: Run ML pipeline
+      # =====================================================
+      # STEP 4: RUN ML PIPELINE
+      # =====================================================
       - name: 🚀 Run Recommendation Pipeline
         env:
-          EVENTS_DATABASE_URL: ${{ secrets.EVENTS_DB_URL }}
-          PRODUCT_DATABASE_URL: ${{ secrets.PRODUCT_DB_URL }}
-          RECOMMENDATION_DATABASE_URL: ${{ secrets.RECO_DB_URL }}
+          # ✅ FIXED VARIABLE NAMES (MATCH PYTHON CODE)
+          EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
+          PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
+          RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
 
         run: |
-          echo "Starting ML pipeline..."
+          echo "🚀 Starting ML pipeline..."
+
+          # Debug (optional - can remove later)
+          echo "Checking env variables..."
+          if [ -z "$EVENTS_DB_URL" ]; then echo "❌ EVENTS_DB_URL missing"; exit 1; fi
+          if [ -z "$PRODUCT_DB_URL" ]; then echo "❌ PRODUCT_DB_URL missing"; exit 1; fi
+          if [ -z "$RECO_DB_URL" ]; then echo "❌ RECO_DB_URL missing"; exit 1; fi
+
+          echo "✅ All env variables present"
+
           python pipeline/run_pipeline.py
-          echo "Pipeline execution completed"
+
+          echo "🎉 Pipeline execution completed successfully"
