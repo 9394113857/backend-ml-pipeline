@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from datetime import datetime
 
 # ==================================================
@@ -18,7 +18,6 @@ EVENTS_DB_URL = os.getenv("EVENTS_DB_URL")
 PRODUCT_DB_URL = os.getenv("PRODUCT_DB_URL")
 RECO_DB_URL = os.getenv("RECO_DB_URL")
 
-MODEL_VERSION = "v1_weighted_events"
 TOP_K = 10
 
 assert EVENTS_DB_URL, "❌ EVENTS_DB_URL missing"
@@ -66,14 +65,14 @@ events_df = events_df.dropna(subset=["object_id"])
 events_df["object_id"] = events_df["object_id"].astype(int)
 
 # =========================
-# STEP 3: WEIGHTS (🔥 FIXED)
+# STEP 3: EVENT WEIGHTS
 # =========================
 EVENT_WEIGHTS = {
     "view_product": 1,
     "add_to_cart": 3,
     "checkout": 5,
     "remove_from_cart": -2,
-    "order_cancelled": -3   # ✅ ADDED
+    "order_cancelled": -3
 }
 
 events_df["score"] = events_df["event_type"].map(EVENT_WEIGHTS).fillna(0)
@@ -111,10 +110,9 @@ final_df = ranked_df.merge(
     products_df,
     left_on="product_id",
     right_on="id",
-    how="inner"   # 🔥 STRICT MATCH
+    how="inner"
 )
 
-final_df["model_version"] = MODEL_VERSION
 final_df["created_at"] = datetime.utcnow()
 
 final_df = final_df[[
@@ -122,14 +120,13 @@ final_df = final_df[[
     "product_id",
     "score",
     "rank",
-    "model_version",
     "created_at"
 ]]
 
 print(f"🔥 FINAL ROWS: {len(final_df)}")
 
 # =========================
-# 🔴 CRITICAL CHECK
+# CHECK EMPTY
 # =========================
 if final_df.empty:
     print("❌ NO RECOMMENDATIONS GENERATED")
@@ -138,12 +135,6 @@ if final_df.empty:
 # =========================
 # STEP 7: SAVE
 # =========================
-with reco_engine.begin() as conn:
-    conn.execute(
-        text("DELETE FROM recommendations WHERE model_version = :v"),
-        {"v": MODEL_VERSION}
-    )
-
 final_df.to_sql(
     "recommendations",
     reco_engine,
