@@ -4,11 +4,9 @@ from sqlalchemy import create_engine
 from datetime import datetime
 
 # ==================================================
-# PIPELINE START
+# 🚀 PIPELINE START
 # ==================================================
-PIPELINE_START = datetime.utcnow()
 print("🚀 ML PIPELINE STARTED")
-print(f"🕒 Start Time (UTC): {PIPELINE_START}")
 print("-" * 60)
 
 # =========================
@@ -20,12 +18,11 @@ RECO_DB_URL = os.getenv("RECO_DB_URL")
 
 TOP_K = 10
 
-assert EVENTS_DB_URL, "❌ EVENTS_DB_URL missing"
-assert PRODUCT_DB_URL, "❌ PRODUCT_DB_URL missing"
-assert RECO_DB_URL, "❌ RECO_DB_URL missing"
+if not EVENTS_DB_URL or not PRODUCT_DB_URL or not RECO_DB_URL:
+    print("❌ Missing environment variables")
+    exit(1)
 
 print("✅ Environment variables loaded")
-print("-" * 60)
 
 # =========================
 # DB CONNECTIONS
@@ -38,7 +35,7 @@ print("✅ DB connections ready")
 print("-" * 60)
 
 # =========================
-# STEP 1: FETCH DATA
+# STEP 1: FETCH EVENTS
 # =========================
 events_df = pd.read_sql("""
     SELECT user_id, event_type, object_id
@@ -49,23 +46,36 @@ events_df = pd.read_sql("""
 
 print(f"📊 Events fetched: {len(events_df)}")
 
+# 🔥 SAFE EXIT
+if events_df.empty:
+    print("⚠️ No events found. Exiting safely.")
+    exit(0)
+
+# =========================
+# STEP 2: FETCH PRODUCTS
+# =========================
 products_df = pd.read_sql("""
     SELECT id, name
     FROM products
 """, product_engine)
 
 print(f"📦 Products fetched: {len(products_df)}")
+
+if products_df.empty:
+    print("⚠️ No products found. Exiting safely.")
+    exit(0)
+
 print("-" * 60)
 
 # =========================
-# STEP 2: CLEAN DATA
+# STEP 3: CLEAN DATA
 # =========================
 events_df["object_id"] = pd.to_numeric(events_df["object_id"], errors="coerce")
 events_df = events_df.dropna(subset=["object_id"])
 events_df["object_id"] = events_df["object_id"].astype(int)
 
 # =========================
-# STEP 3: EVENT WEIGHTS
+# STEP 4: EVENT WEIGHTS
 # =========================
 EVENT_WEIGHTS = {
     "view_product": 1,
@@ -78,7 +88,7 @@ EVENT_WEIGHTS = {
 events_df["score"] = events_df["event_type"].map(EVENT_WEIGHTS).fillna(0)
 
 # =========================
-# STEP 4: FEATURES
+# STEP 5: FEATURE BUILDING
 # =========================
 features_df = (
     events_df
@@ -90,8 +100,12 @@ features_df = (
 
 print(f"🧠 Feature rows: {len(features_df)}")
 
+if features_df.empty:
+    print("⚠️ No features generated. Exiting safely.")
+    exit(0)
+
 # =========================
-# STEP 5: RANKING
+# STEP 6: RANKING
 # =========================
 features_df["rank"] = (
     features_df
@@ -104,7 +118,7 @@ ranked_df = features_df[features_df["rank"] <= TOP_K]
 print(f"📊 Ranked rows: {len(ranked_df)}")
 
 # =========================
-# STEP 6: MERGE PRODUCTS
+# STEP 7: MERGE PRODUCTS
 # =========================
 final_df = ranked_df.merge(
     products_df,
@@ -113,41 +127,42 @@ final_df = ranked_df.merge(
     how="inner"
 )
 
-final_df["created_at"] = datetime.utcnow()
-
-final_df = final_df[[
-    "user_id",
-    "product_id",
-    "score",
-    "rank",
-    "created_at"
-]]
-
+# =========================
+# FINAL CHECK
+# =========================
 print(f"🔥 FINAL ROWS: {len(final_df)}")
 
-# =========================
-# CHECK EMPTY
-# =========================
 if final_df.empty:
-    print("❌ NO RECOMMENDATIONS GENERATED")
+    print("⚠️ No matching products. Exiting safely.")
+    exit(0)
+
+# =========================
+# STEP 8: PREPARE FINAL DATA
+# =========================
+final_df["created_at"] = datetime.utcnow()
+
+final_df = final_df[
+    ["user_id", "product_id", "score", "rank", "created_at"]
+]
+
+# =========================
+# STEP 9: INSERT INTO DB
+# =========================
+try:
+    final_df.to_sql(
+        "recommendations",
+        reco_engine,
+        if_exists="append",
+        index=False
+    )
+    print("✅ RECOMMENDATIONS INSERTED SUCCESSFULLY")
+
+except Exception as e:
+    print("❌ Insert failed:", str(e))
     exit(1)
-
-# =========================
-# STEP 7: SAVE
-# =========================
-final_df.to_sql(
-    "recommendations",
-    reco_engine,
-    if_exists="append",
-    index=False
-)
-
-print("✅ RECOMMENDATIONS INSERTED SUCCESSFULLY")
 
 # =========================
 # END
 # =========================
-PIPELINE_END = datetime.utcnow()
 print("-" * 60)
-print("🎉 PIPELINE COMPLETED")
-print(f"⏱ Duration: {PIPELINE_END - PIPELINE_START}")
+print("🎉 PIPELINE COMPLETED SUCCESSFULLY")
