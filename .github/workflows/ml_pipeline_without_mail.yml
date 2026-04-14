@@ -1,13 +1,18 @@
 # =====================================================
 # WORKFLOW NAME
 # =====================================================
-name: ML Recommendation Pipeline (Manual Only)
+name: ML Recommendation Pipeline (Manual + Daily)
 
 # =====================================================
-# TRIGGER (ONLY MANUAL)
+# TRIGGERS
 # =====================================================
 on:
+  # 🔵 Manual trigger
   workflow_dispatch:
+
+  # 🟢 Daily at 3:00 AM IST (9:30 PM UTC)
+  schedule:
+    - cron: "30 21 * * *"
 
 # =====================================================
 # JOBS
