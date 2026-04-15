@@ -1,11 +1,8 @@
 import os
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from datetime import datetime
 
-# ==================================================
-# 🚀 PIPELINE START
-# ==================================================
 print("🚀 ML PIPELINE STARTED")
 print("-" * 60)
 
@@ -38,15 +35,14 @@ print("-" * 60)
 # STEP 1: FETCH EVENTS
 # =========================
 events_df = pd.read_sql("""
-    SELECT user_id, event_type, object_id
-    FROM user_events
-    WHERE user_id IS NOT NULL
-      AND object_type = 'product'
+SELECT user_id, event_type, object_id
+FROM user_events
+WHERE user_id IS NOT NULL
+AND object_type = 'product'
 """, events_engine)
 
-print(f"📊 Events fetched: {len(events_df)}")
+print("📊 Events fetched:", len(events_df))
 
-# 🔥 SAFE EXIT
 if events_df.empty:
     print("⚠️ No events found. Exiting safely.")
     exit(0)
@@ -55,11 +51,11 @@ if events_df.empty:
 # STEP 2: FETCH PRODUCTS
 # =========================
 products_df = pd.read_sql("""
-    SELECT id, name
-    FROM products
+SELECT id, name
+FROM products
 """, product_engine)
 
-print(f"📦 Products fetched: {len(products_df)}")
+print("📦 Products fetched:", len(products_df))
 
 if products_df.empty:
     print("⚠️ No products found. Exiting safely.")
@@ -98,7 +94,7 @@ features_df = (
     .rename(columns={"object_id": "product_id"})
 )
 
-print(f"🧠 Feature rows: {len(features_df)}")
+print("🧠 Feature rows:", len(features_df))
 
 if features_df.empty:
     print("⚠️ No features generated. Exiting safely.")
@@ -115,7 +111,7 @@ features_df["rank"] = (
 
 ranked_df = features_df[features_df["rank"] <= TOP_K]
 
-print(f"📊 Ranked rows: {len(ranked_df)}")
+print("📊 Ranked rows:", len(ranked_df))
 
 # =========================
 # STEP 7: MERGE PRODUCTS
@@ -127,17 +123,14 @@ final_df = ranked_df.merge(
     how="inner"
 )
 
-# =========================
-# FINAL CHECK
-# =========================
-print(f"🔥 FINAL ROWS: {len(final_df)}")
+print("🔥 FINAL ROWS:", len(final_df))
 
 if final_df.empty:
     print("⚠️ No matching products. Exiting safely.")
     exit(0)
 
 # =========================
-# STEP 8: PREPARE FINAL DATA
+# STEP 8: FINAL FORMAT
 # =========================
 final_df["created_at"] = datetime.utcnow()
 
@@ -146,7 +139,17 @@ final_df = final_df[
 ]
 
 # =========================
-# STEP 9: INSERT INTO DB
+# STEP 9: CLEAR OLD DATA
+# =========================
+try:
+    with reco_engine.begin() as conn:
+        conn.execute(text("TRUNCATE TABLE recommendations"))
+    print("🧹 Old recommendations cleared")
+except Exception as e:
+    print("⚠️ Truncate failed:", str(e))
+
+# =========================
+# STEP 10: INSERT DATA
 # =========================
 try:
     final_df.to_sql(
@@ -156,13 +159,9 @@ try:
         index=False
     )
     print("✅ RECOMMENDATIONS INSERTED SUCCESSFULLY")
-
 except Exception as e:
     print("❌ Insert failed:", str(e))
     exit(1)
 
-# =========================
-# END
-# =========================
 print("-" * 60)
 print("🎉 PIPELINE COMPLETED SUCCESSFULLY")
