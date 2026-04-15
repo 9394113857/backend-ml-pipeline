@@ -1,167 +1,95 @@
-import os
-import pandas as pd
-from sqlalchemy import create_engine, text
-from datetime import datetime
+# =====================================================
+# WORKFLOW NAME
+# =====================================================
+name: ML Recommendation Pipeline (Manual + Daily)
 
-print("🚀 ML PIPELINE STARTED")
-print("-" * 60)
+# =====================================================
+# TRIGGERS
+# =====================================================
+on:
+  # 🔵 Manual trigger
+  workflow_dispatch:
 
-# =========================
-# ENV CONFIG
-# =========================
-EVENTS_DB_URL = os.getenv("EVENTS_DB_URL")
-PRODUCT_DB_URL = os.getenv("PRODUCT_DB_URL")
-RECO_DB_URL = os.getenv("RECO_DB_URL")
+  # 🟢 Daily at 3:00 AM IST (9:30 PM UTC)
+  schedule:
+    - cron: "30 21 * * *"
 
-TOP_K = 10
+# =====================================================
+# JOBS
+# =====================================================
+jobs:
+  recommendation-pipeline:
 
-if not EVENTS_DB_URL or not PRODUCT_DB_URL or not RECO_DB_URL:
-    print("❌ Missing environment variables")
-    exit(1)
+    runs-on: ubuntu-latest
 
-print("✅ Environment variables loaded")
+    steps:
 
-# =========================
-# DB CONNECTIONS
-# =========================
-events_engine = create_engine(EVENTS_DB_URL)
-product_engine = create_engine(PRODUCT_DB_URL)
-reco_engine = create_engine(RECO_DB_URL)
+      # =====================================================
+      # STEP 1: CHECKOUT CODE
+      # =====================================================
+      - name: 📦 Checkout Code
+        uses: actions/checkout@v3
 
-print("✅ DB connections ready")
-print("-" * 60)
+      # =====================================================
+      # STEP 2: SETUP PYTHON
+      # =====================================================
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-# =========================
-# STEP 1: FETCH EVENTS
-# =========================
-events_df = pd.read_sql("""
-SELECT user_id, event_type, object_id
-FROM user_events
-WHERE user_id IS NOT NULL
-AND object_type = 'product'
-""", events_engine)
+      # =====================================================
+      # STEP 3: INSTALL DEPENDENCIES
+      # =====================================================
+      - name: 📚 Install Dependencies
+        run: |
+          echo "📦 Installing dependencies..."
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "✅ Dependencies installed"
 
-print("📊 Events fetched:", len(events_df))
+      # =====================================================
+      # STEP 4: RUN ML PIPELINE
+      # =====================================================
+      - name: 🚀 Run Recommendation Pipeline
+        env:
+          EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
+          PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
+          RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
 
-if events_df.empty:
-    print("⚠️ No events found. Exiting safely.")
-    exit(0)
+        run: |
+          echo "========================================"
+          echo "🚀 ML PIPELINE STARTED"
+          echo "========================================"
+          date
 
-# =========================
-# STEP 2: FETCH PRODUCTS
-# =========================
-products_df = pd.read_sql("""
-SELECT id, name
-FROM products
-""", product_engine)
+          # 🔍 Validate environment variables
+          echo "🔍 Validating environment variables..."
 
-print("📦 Products fetched:", len(products_df))
+          if [ -z "$EVENTS_DB_URL" ]; then
+            echo "❌ EVENTS_DB_URL missing"
+            exit 1
+          fi
 
-if products_df.empty:
-    print("⚠️ No products found. Exiting safely.")
-    exit(0)
+          if [ -z "$PRODUCT_DB_URL" ]; then
+            echo "❌ PRODUCT_DB_URL missing"
+            exit 1
+          fi
 
-print("-" * 60)
+          if [ -z "$RECO_DB_URL" ]; then
+            echo "❌ RECO_DB_URL missing"
+            exit 1
+          fi
 
-# =========================
-# STEP 3: CLEAN DATA
-# =========================
-events_df["object_id"] = pd.to_numeric(events_df["object_id"], errors="coerce")
-events_df = events_df.dropna(subset=["object_id"])
-events_df["object_id"] = events_df["object_id"].astype(int)
+          echo "✅ All environment variables are set"
 
-# =========================
-# STEP 4: EVENT WEIGHTS
-# =========================
-EVENT_WEIGHTS = {
-    "view_product": 1,
-    "add_to_cart": 3,
-    "checkout": 5,
-    "remove_from_cart": -2,
-    "order_cancelled": -3
-}
+          echo "----------------------------------------"
+          echo "⚙️ Running ML pipeline script..."
+          echo "----------------------------------------"
 
-events_df["score"] = events_df["event_type"].map(EVENT_WEIGHTS).fillna(0)
+          python pipeline/run_pipeline.py
 
-# =========================
-# STEP 5: FEATURE BUILDING
-# =========================
-features_df = (
-    events_df
-    .groupby(["user_id", "object_id"])["score"]
-    .sum()
-    .reset_index()
-    .rename(columns={"object_id": "product_id"})
-)
-
-print("🧠 Feature rows:", len(features_df))
-
-if features_df.empty:
-    print("⚠️ No features generated. Exiting safely.")
-    exit(0)
-
-# =========================
-# STEP 6: RANKING
-# =========================
-features_df["rank"] = (
-    features_df
-    .groupby("user_id")["score"]
-    .rank(method="first", ascending=False)
-)
-
-ranked_df = features_df[features_df["rank"] <= TOP_K]
-
-print("📊 Ranked rows:", len(ranked_df))
-
-# =========================
-# STEP 7: MERGE PRODUCTS
-# =========================
-final_df = ranked_df.merge(
-    products_df,
-    left_on="product_id",
-    right_on="id",
-    how="inner"
-)
-
-print("🔥 FINAL ROWS:", len(final_df))
-
-if final_df.empty:
-    print("⚠️ No matching products. Exiting safely.")
-    exit(0)
-
-# =========================
-# STEP 8: FINAL FORMAT
-# =========================
-final_df["created_at"] = datetime.utcnow()
-
-final_df = final_df[
-    ["user_id", "product_id", "score", "rank", "created_at"]
-]
-
-# =========================
-# STEP 9: CLEAR OLD DATA
-# =========================
-try:
-    with reco_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE recommendations"))
-    print("🧹 Old recommendations cleared")
-except Exception as e:
-    print("⚠️ Truncate failed:", str(e))
-
-# =========================
-# STEP 10: INSERT DATA
-# =========================
-try:
-    final_df.to_sql(
-        "recommendations",
-        reco_engine,
-        if_exists="append",
-        index=False
-    )
-    print("✅ RECOMMENDATIONS INSERTED SUCCESSFULLY")
-except Exception as e:
-    print("❌ Insert failed:", str(e))
-    exit(1)
-
-print("-" * 60)
-print("🎉 PIPELINE COMPLETED SUCCESSFULLY")
+          echo "----------------------------------------"
+          echo "🎉 ML PIPELINE COMPLETED SUCCESSFULLY"
+          echo "----------------------------------------"
+          date
