@@ -1,3 +1,7 @@
+# =====================================================
+# ML RECOMMENDATION PIPELINE (FINAL VERSION)
+# =====================================================
+
 import os
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -108,6 +112,9 @@ features_df["rank"] = (
     .groupby("user_id")["score"]
     .rank(method="first", ascending=False)
 )
+
+# 🔥 IMPORTANT FIX → convert rank to int (matches DB)
+features_df["rank"] = features_df["rank"].astype(int)
 
 ranked_df = features_df[features_df["rank"] <= TOP_K]
 
