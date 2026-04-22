@@ -1,5 +1,5 @@
 # =====================================================
-# ML RECOMMENDATION PIPELINE (FINAL VERSION)
+# ML RECOMMENDATION PIPELINE (FINAL - PRODUCTION SAFE)
 # =====================================================
 
 import os
@@ -72,7 +72,7 @@ print("-" * 60)
 # =========================
 events_df["object_id"] = pd.to_numeric(events_df["object_id"], errors="coerce")
 events_df = events_df.dropna(subset=["object_id"])
-events_df["object_id"] = events_df["object_id"].astype(int)
+events_df["object_id"] = events_df["object_id"].astype("int64")
 
 # =========================
 # STEP 4: EVENT WEIGHTS
@@ -111,10 +111,8 @@ features_df["rank"] = (
     features_df
     .groupby("user_id")["score"]
     .rank(method="first", ascending=False)
+    .astype("int64")
 )
-
-# 🔥 IMPORTANT FIX → convert rank to int (matches DB)
-features_df["rank"] = features_df["rank"].astype(int)
 
 ranked_df = features_df[features_df["rank"] <= TOP_K]
 
@@ -146,26 +144,34 @@ final_df = final_df[
 ]
 
 # =========================
-# STEP 9: CLEAR OLD DATA
+# 🔥 STEP 9: TYPE ALIGNMENT (CRITICAL FIX)
+# =========================
+final_df = final_df.astype({
+    "user_id": "int64",
+    "product_id": "int64",
+    "score": "float64",
+    "rank": "int64"
+})
+
+# =========================
+# 🔥 STEP 10: UPSERT (NO DUPLICATE PK ERROR)
 # =========================
 try:
     with reco_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE recommendations"))
-    print("🧹 Old recommendations cleared")
-except Exception as e:
-    print("⚠️ Truncate failed:", str(e))
+        # Instead of truncate → safer UPSERT
+        for _, row in final_df.iterrows():
+            conn.execute(text("""
+                INSERT INTO recommendations (user_id, product_id, score, rank, created_at)
+                VALUES (:user_id, :product_id, :score, :rank, :created_at)
+                ON CONFLICT (user_id, product_id)
+                DO UPDATE SET
+                    score = EXCLUDED.score,
+                    rank = EXCLUDED.rank,
+                    created_at = EXCLUDED.created_at
+            """), row.to_dict())
 
-# =========================
-# STEP 10: INSERT DATA
-# =========================
-try:
-    final_df.to_sql(
-        "recommendations",
-        reco_engine,
-        if_exists="append",
-        index=False
-    )
-    print("✅ RECOMMENDATIONS INSERTED SUCCESSFULLY")
+    print("✅ RECOMMENDATIONS UPSERTED SUCCESSFULLY")
+
 except Exception as e:
     print("❌ Insert failed:", str(e))
     exit(1)
