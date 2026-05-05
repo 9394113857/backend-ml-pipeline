@@ -1,3 +1,7 @@
+# =====================================================
+# ML PIPELINE (FINAL - PRODUCTION READY ✅)
+# =====================================================
+
 import os
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -53,20 +57,18 @@ events_df = events_df.dropna(subset=["object_id"])
 events_df["object_id"] = events_df["object_id"].astype(int)
 
 # =========================
-# STEP 3: EVENT WEIGHTS (OPTION B ✅)
+# STEP 3: EVENT WEIGHTS (FIXED ✅)
 # =========================
 EVENT_WEIGHTS = {
     "view_product": 1,
     "add_to_cart": 3,
-    "checkout_completed": 5,
-    "checkout_started": 2,
+    "checkout": 5,            # ✅ FIXED (matches backend)
     "order_cancelled": -3
 }
 
-# Apply weights
 events_df["score"] = events_df["event_type"].map(EVENT_WEIGHTS).fillna(0)
 
-# 🔥 IMPORTANT: REMOVE NON-USEFUL EVENTS (score = 0)
+# Remove useless events
 events_df = events_df[events_df["score"] != 0]
 
 print(f"🎯 Useful events after filtering: {len(events_df)}")
@@ -110,35 +112,42 @@ if ranked_df.empty:
 # =========================
 final_df = ranked_df.copy()
 
-final_df["created_at"] = datetime.utcnow()
+current_time = datetime.utcnow()
+
+final_df["created_at"] = current_time
+final_df["updated_at"] = current_time   # ✅ NEW COLUMN
 
 final_df = final_df[
-    ["user_id", "product_id", "score", "rank", "created_at"]
+    ["user_id", "product_id", "score", "rank", "created_at", "updated_at"]
 ]
 
 print(f"🔥 FINAL ROWS: {len(final_df)}")
 
 # =========================
-# STEP 7: UPSERT (CRITICAL 🔥)
+# STEP 7: UPSERT (FINAL ✅)
 # =========================
 try:
     with reco_engine.begin() as conn:
 
         for _, row in final_df.iterrows():
             conn.execute(text("""
-                INSERT INTO recommendations (user_id, product_id, score, rank, created_at)
-                VALUES (:user_id, :product_id, :score, :rank, :created_at)
+                INSERT INTO recommendations 
+                (user_id, product_id, score, rank, created_at, updated_at)
+                VALUES 
+                (:user_id, :product_id, :score, :rank, :created_at, :updated_at)
                 ON CONFLICT (user_id, product_id)
                 DO UPDATE SET
                     score = EXCLUDED.score,
                     rank = EXCLUDED.rank,
-                    created_at = EXCLUDED.created_at;
+                    created_at = EXCLUDED.created_at,
+                    updated_at = EXCLUDED.updated_at;
             """), {
                 "user_id": int(row["user_id"]),
                 "product_id": int(row["product_id"]),
                 "score": float(row["score"]),
                 "rank": int(row["rank"]),
-                "created_at": row["created_at"]
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"]
             })
 
     print("✅ RECOMMENDATIONS UPSERTED SUCCESSFULLY")
