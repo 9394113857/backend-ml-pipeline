@@ -27,7 +27,15 @@ jobs:
           PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
           RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
         run: |
+          echo "========================================"
+          echo "ML PIPELINE STARTED"
+          echo "========================================"
+
           python pipeline/run_pipeline.py
+
+          echo "========================================"
+          echo "ML PIPELINE COMPLETED"
+          echo "========================================"
 
       - name: Send Success Email
         if: success()
@@ -40,16 +48,52 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.MAIL_TO }}
           cc: ${{ secrets.MAIL_CC }}
-          subject: "ML Pipeline Success"
+          subject: "✅ ML Pipeline Success"
           from: ${{ secrets.MAIL_USERNAME }}
           body: |
             ML Recommendation Pipeline completed successfully.
 
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
+            ========================================
 
-            Recommendations UPSERT completed successfully.
+            Repository:
+            ${{ github.repository }}
+
+            Branch:
+            ${{ github.ref_name }}
+
+            Commit:
+            ${{ github.sha }}
+
+            Trigger:
+            ${{ github.event_name }}
+
+            Workflow Run:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ========================================
+
+            Operations Performed
+
+            ✅ Connected to Events Database
+
+            ✅ Connected to Product Database
+
+            ✅ Connected to Recommendation Database
+
+            ✅ Executed Recommendation Pipeline
+
+            ✅ Performed Feature Engineering
+
+            ✅ Generated User Recommendations
+
+            ✅ Stored Results in Recommendation Database
+
+            ✅ Pipeline Completed Successfully
+
+            ========================================
+
+            Status:
+            SUCCESS
 
       - name: Send Failure Email
         if: failure()
@@ -62,11 +106,27 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           to: ${{ secrets.MAIL_TO }}
           cc: ${{ secrets.MAIL_CC }}
-          subject: "ML Pipeline Failed"
+          subject: "❌ ML Pipeline Failed"
           from: ${{ secrets.MAIL_USERNAME }}
           body: |
             ML Recommendation Pipeline failed.
 
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
+            Repository:
+            ${{ github.repository }}
+
+            Branch:
+            ${{ github.ref_name }}
+
+            Commit:
+            ${{ github.sha }}
+
+            Trigger:
+            ${{ github.event_name }}
+
+            Workflow Run:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Please review GitHub Actions logs.
+
+            Status:
+            FAILED
