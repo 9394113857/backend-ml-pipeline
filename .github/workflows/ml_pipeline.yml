@@ -57,19 +57,14 @@ steps:
       server_address: smtp.gmail.com
       server_port: 465
       secure: true
-
       username: ${{ secrets.MAIL_USERNAME }}
       password: ${{ secrets.MAIL_PASSWORD }}
-
-      subject: "✅ ML Pipeline Success"
-
+      subject: ML Pipeline Success
       to: ${{ secrets.MAIL_TO }}
       cc: ${{ secrets.MAIL_CC }}
-
       from: GitHub Actions
-
       body: |
-        🚀 ML Recommendation Pipeline Completed Successfully
+        ML Recommendation Pipeline Completed Successfully
 
         Repository: ${{ github.repository }}
         Branch: ${{ github.ref_name }}
@@ -86,19 +81,14 @@ steps:
       server_address: smtp.gmail.com
       server_port: 465
       secure: true
-
       username: ${{ secrets.MAIL_USERNAME }}
       password: ${{ secrets.MAIL_PASSWORD }}
-
-      subject: "❌ ML Pipeline Failed"
-
+      subject: ML Pipeline Failed
       to: ${{ secrets.MAIL_TO }}
       cc: ${{ secrets.MAIL_CC }}
-
       from: GitHub Actions
-
       body: |
-        ❌ ML Recommendation Pipeline Failed
+        ML Recommendation Pipeline Failed
 
         Repository: ${{ github.repository }}
         Branch: ${{ github.ref_name }}
