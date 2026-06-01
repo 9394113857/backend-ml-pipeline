@@ -1,0 +1,62 @@
+# =====================================================
+# WORKFLOW NAME
+# =====================================================
+name: ML Recommendation Pipeline
+
+# =====================================================
+# TRIGGERS
+# =====================================================
+on:
+  workflow_dispatch:
+
+  # Runs daily at 4:00 AM IST (10:30 PM UTC)
+  schedule:
+    - cron: "30 22 * * *"  # 10:30 PM UTC = 4:00 AM IST
+
+  push:
+    branches:
+      - main
+
+# =====================================================
+# JOBS
+# =====================================================
+jobs:
+  run-ml-pipeline:
+
+    # GitHub-hosted Ubuntu runner
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # Step 1: Checkout code
+      - name: 📦 Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Setup Python
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      # Step 3: Install dependencies
+      - name: 📚 Install dependencies
+        run: |
+          echo "Installing dependencies..."
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "Dependencies installed"
+
+      # Step 4: Run ML pipeline
+      - name: 🚀 Run ML Pipeline
+        env:
+          EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
+          PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
+          RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_CC: ${{ secrets.MAIL_CC }}
+        
+        run: |
+          echo "Starting ML pipeline..."
+          python pipeline/run_pipeline.py
+          echo "Pipeline execution completed"
