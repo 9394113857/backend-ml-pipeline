@@ -1,62 +1,144 @@
-# =====================================================
-# WORKFLOW NAME
-# =====================================================
 name: ML Recommendation Pipeline
 
-# =====================================================
-# TRIGGERS
-# =====================================================
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
-  # Runs daily at 4:00 AM IST (10:30 PM UTC)
-  schedule:
-    - cron: "30 22 * * *"  # 10:30 PM UTC = 4:00 AM IST
+schedule:
+- cron: "30 22 * * *"
 
-  push:
-    branches:
-      - main
+push:
+branches:
+- main
 
-# =====================================================
-# JOBS
-# =====================================================
 jobs:
-  run-ml-pipeline:
+run-ml-pipeline:
 
-    # GitHub-hosted Ubuntu runner
-    runs-on: ubuntu-latest
+```
+runs-on: ubuntu-latest
 
-    steps:
+steps:
 
-      # Step 1: Checkout code
-      - name: 📦 Checkout code
-        uses: actions/checkout@v3
+  # ==========================================
+  # CHECKOUT
+  # ==========================================
+  - name: 📦 Checkout code
+    uses: actions/checkout@v4
 
-      # Step 2: Setup Python
-      - name: 🐍 Setup Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
+  # ==========================================
+  # PYTHON
+  # ==========================================
+  - name: 🐍 Setup Python 3.11
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
 
-      # Step 3: Install dependencies
-      - name: 📚 Install dependencies
-        run: |
-          echo "Installing dependencies..."
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          echo "Dependencies installed"
+  # ==========================================
+  # INSTALL DEPENDENCIES
+  # ==========================================
+  - name: 📚 Install dependencies
+    run: |
+      echo "Installing dependencies..."
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      echo "Dependencies installed"
 
-      # Step 4: Run ML pipeline
-      - name: 🚀 Run ML Pipeline
-        env:
-          EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
-          PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
-          RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
-          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-          MAIL_CC: ${{ secrets.MAIL_CC }}
-        
-        run: |
-          echo "Starting ML pipeline..."
-          python pipeline/run_pipeline.py
-          echo "Pipeline execution completed"
+  # ==========================================
+  # RUN ML PIPELINE
+  # ==========================================
+  - name: 🚀 Run ML Pipeline
+    env:
+      EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
+      PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
+      RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
+
+    run: |
+      echo "========================================"
+      echo "🚀 ML PIPELINE STARTED"
+      echo "========================================"
+
+      python pipeline/run_pipeline.py
+
+      echo "========================================"
+      echo "🎉 ML PIPELINE COMPLETED"
+      echo "========================================"
+
+  # ==========================================
+  # SUCCESS EMAIL
+  # ==========================================
+  - name: 📧 Send Success Email
+    if: success()
+    uses: dawidd6/action-send-mail@v3
+
+    with:
+      server_address: smtp.gmail.com
+      server_port: 465
+      secure: true
+
+      username: ${{ secrets.MAIL_USERNAME }}
+      password: ${{ secrets.MAIL_PASSWORD }}
+
+      subject: "✅ ML Pipeline Success"
+
+      to: ${{ secrets.MAIL_TO }}
+      cc: ${{ secrets.MAIL_CC }}
+
+      from: GitHub Actions
+
+      body: |
+        🚀 ML Recommendation Pipeline Completed Successfully
+
+        Repository:
+        ${{ github.repository }}
+
+        Branch:
+        ${{ github.ref_name }}
+
+        Commit:
+        ${{ github.sha }}
+
+        Trigger:
+        ${{ github.event_name }}
+
+        Run URL:
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ==========================================
+  # FAILURE EMAIL
+  # ==========================================
+  - name: 📧 Send Failure Email
+    if: failure()
+    uses: dawidd6/action-send-mail@v3
+
+    with:
+      server_address: smtp.gmail.com
+      server_port: 465
+      secure: true
+
+      username: ${{ secrets.MAIL_USERNAME }}
+      password: ${{ secrets.MAIL_PASSWORD }}
+
+      subject: "❌ ML Pipeline Failed"
+
+      to: ${{ secrets.MAIL_TO }}
+      cc: ${{ secrets.MAIL_CC }}
+
+      from: GitHub Actions
+
+      body: |
+        ❌ ML Recommendation Pipeline Failed
+
+        Repository:
+        ${{ github.repository }}
+
+        Branch:
+        ${{ github.ref_name }}
+
+        Commit:
+        ${{ github.sha }}
+
+        Trigger:
+        ${{ github.event_name }}
+
+        Run URL:
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+```
