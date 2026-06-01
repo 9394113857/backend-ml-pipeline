@@ -1,134 +1,129 @@
 name: ML Pipeline With Email Notifications
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 jobs:
-  run-ml-pipeline:
-    runs-on: ubuntu-latest
+run-ml-pipeline:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+```
+steps:
+  - name: Checkout Code
+    uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+  - name: Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+  - name: Install Dependencies
+    run: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
 
-      - name: Run ML Pipeline
-        env:
-          EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
-          PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
-          RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
-        run: |
-          echo "========================================"
-          echo "🚀 ML PIPELINE STARTED"
-          echo "========================================"
+  - name: Run ML Pipeline
+    env:
+      EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
+      PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
+      RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
+    run: |
+      echo "========================================"
+      echo "🚀 ML PIPELINE STARTED"
+      echo "========================================"
 
-          python pipeline/run_pipeline.py
+      python pipeline/run_pipeline.py | tee pipeline_output.txt
 
-          echo "========================================"
-          echo "✅ ML PIPELINE COMPLETED"
-          echo "========================================"
+      echo "========================================"
+      echo "✅ ML PIPELINE COMPLETED"
+      echo "========================================"
 
-      - name: Send Success Email
-        if: success()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          to: ${{ secrets.MAIL_TO }}
-          cc: ${{ secrets.MAIL_CC }}
-          subject: "✅ ML Pipeline Success"
-          from: ${{ secrets.MAIL_USERNAME }}
-          body: |
-            ML Recommendation Pipeline completed successfully.
+  - name: Read Pipeline Logs
+    if: success()
+    run: |
+      {
+        echo 'PIPELINE_LOGS<<EOF'
+        cat pipeline_output.txt
+        echo EOF
+      } >> $GITHUB_ENV
 
-            ========================================
+  - name: Send Success Email
+    if: success()
+    uses: dawidd6/action-send-mail@v3
+    with:
+      server_address: smtp.gmail.com
+      server_port: 465
+      secure: true
+      username: ${{ secrets.MAIL_USERNAME }}
+      password: ${{ secrets.MAIL_PASSWORD }}
+      to: ${{ secrets.MAIL_TO }}
+      cc: ${{ secrets.MAIL_CC }}
+      subject: "✅ ML Pipeline Success"
+      from: ${{ secrets.MAIL_USERNAME }}
+      body: |
+        ML Recommendation Pipeline completed successfully.
 
-            Repository:
-            ${{ github.repository }}
+        ========================================
 
-            Branch:
-            ${{ github.ref_name }}
+        Repository:
+        ${{ github.repository }}
 
-            Commit:
-            ${{ github.sha }}
+        Branch:
+        ${{ github.ref_name }}
 
-            Trigger:
-            ${{ github.event_name }}
+        Commit:
+        ${{ github.sha }}
 
-            Workflow Run:
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        Trigger:
+        ${{ github.event_name }}
 
-            ========================================
+        Workflow Run:
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            Operations Performed
+        ========================================
 
-            ✅ Connected to Events Database
+        ACTUAL PIPELINE OUTPUT
 
-            ✅ Connected to Product Database
+        ${{ env.PIPELINE_LOGS }}
 
-            ✅ Connected to Recommendation Database
+        ========================================
 
-            ✅ Executed Recommendation Pipeline
+        Status:
+        SUCCESS
 
-            ✅ Performed Feature Engineering
+  - name: Send Failure Email
+    if: failure()
+    uses: dawidd6/action-send-mail@v3
+    with:
+      server_address: smtp.gmail.com
+      server_port: 465
+      secure: true
+      username: ${{ secrets.MAIL_USERNAME }}
+      password: ${{ secrets.MAIL_PASSWORD }}
+      to: ${{ secrets.MAIL_TO }}
+      cc: ${{ secrets.MAIL_CC }}
+      subject: "❌ ML Pipeline Failed"
+      from: ${{ secrets.MAIL_USERNAME }}
+      body: |
+        ML Recommendation Pipeline failed.
 
-            ✅ Generated User Recommendations
+        Repository:
+        ${{ github.repository }}
 
-            ✅ Stored Results in Recommendation Database
+        Branch:
+        ${{ github.ref_name }}
 
-            ✅ Recommendations UPSERTED Successfully
+        Commit:
+        ${{ github.sha }}
 
-            ✅ Pipeline Completed Successfully
+        Trigger:
+        ${{ github.event_name }}
 
-            ========================================
+        Workflow Run:
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            Status:
-            SUCCESS
+        Please review GitHub Actions logs.
 
-      - name: Send Failure Email
-        if: failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          to: ${{ secrets.MAIL_TO }}
-          cc: ${{ secrets.MAIL_CC }}
-          subject: "❌ ML Pipeline Failed"
-          from: ${{ secrets.MAIL_USERNAME }}
-          body: |
-            ML Recommendation Pipeline failed.
-
-            Repository:
-            ${{ github.repository }}
-
-            Branch:
-            ${{ github.ref_name }}
-
-            Commit:
-            ${{ github.sha }}
-
-            Trigger:
-            ${{ github.event_name }}
-
-            Workflow Run:
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Please review GitHub Actions logs.
-
-            Status:
-            FAILED
+        Status:
+        FAILED
+```
