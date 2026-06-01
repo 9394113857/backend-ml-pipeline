@@ -1,4 +1,4 @@
-name: ML Pipeline With Email
+name: ML Pipeline With Email Notifications
 
 on:
 workflow_dispatch:
@@ -11,17 +11,18 @@ runs-on: ubuntu-latest
 
 steps:
 
-  - name: 📦 Checkout code
-    uses: actions/checkout@v3
+  - name: 📦 Checkout Code
+    uses: actions/checkout@v4
 
-  - name: 🐍 Setup Python 3.11
-    uses: actions/setup-python@v4
+  - name: 🐍 Setup Python
+    uses: actions/setup-python@v5
     with:
       python-version: "3.11"
 
-  - name: 📚 Install dependencies
+  - name: 📚 Install Dependencies
     run: |
-      pip install --upgrade pip
+      echo "Installing dependencies..."
+      python -m pip install --upgrade pip
       pip install -r requirements.txt
 
   - name: 🚀 Run ML Pipeline
@@ -38,11 +39,15 @@ steps:
       echo "🚀 ML PIPELINE STARTED"
       echo "========================================"
 
+      START_TIME=$(date)
+
       python pipeline/run_pipeline.py
 
       echo "========================================"
-      echo "🎉 ML PIPELINE COMPLETED"
+      echo "✅ ML PIPELINE COMPLETED"
       echo "========================================"
+
+      echo "PIPELINE_TIME=$START_TIME" >> $GITHUB_ENV
 
   - name: 📧 Send Success Email
     if: success()
@@ -55,15 +60,17 @@ steps:
       username: ${{ secrets.MAIL_USERNAME }}
       password: ${{ secrets.MAIL_PASSWORD }}
 
-      subject: "✅ ML Pipeline Success"
-
       to: ${{ secrets.MAIL_TO }}
       cc: ${{ secrets.MAIL_CC }}
 
-      from: GitHub Actions
+      subject: "✅ ML Recommendation Pipeline Success"
+
+      from: ${{ secrets.MAIL_USERNAME }}
 
       body: |
         🚀 ML Recommendation Pipeline Completed Successfully
+
+        ========================================
 
         Repository:
         ${{ github.repository }}
@@ -77,8 +84,33 @@ steps:
         Trigger:
         ${{ github.event_name }}
 
-        Run URL:
+        Started:
+        ${{ env.PIPELINE_TIME }}
+
+        Workflow Run:
         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+        ========================================
+
+        Operations Completed:
+
+        ✅ Events fetched from Events DB
+
+        ✅ Product data fetched
+
+        ✅ Feature engineering executed
+
+        ✅ User-product scoring completed
+
+        ✅ Ranking generated
+
+        ✅ Top-K recommendations generated
+
+        ✅ Recommendations UPSERTED into database
+
+        ✅ Workflow completed successfully
+
+        ========================================
 
         Status:
         SUCCESS ✅
@@ -94,12 +126,12 @@ steps:
       username: ${{ secrets.MAIL_USERNAME }}
       password: ${{ secrets.MAIL_PASSWORD }}
 
-      subject: "❌ ML Pipeline Failed"
-
       to: ${{ secrets.MAIL_TO }}
       cc: ${{ secrets.MAIL_CC }}
 
-      from: GitHub Actions
+      subject: "❌ ML Recommendation Pipeline Failed"
+
+      from: ${{ secrets.MAIL_USERNAME }}
 
       body: |
         ❌ ML Recommendation Pipeline Failed
@@ -116,6 +148,8 @@ steps:
         Trigger:
         ${{ github.event_name }}
 
-        Run URL:
+        Workflow Run:
         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+        Immediate investigation required.
 ```
