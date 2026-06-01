@@ -28,13 +28,13 @@ jobs:
           RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
         run: |
           echo "========================================"
-          echo "ML PIPELINE STARTED"
+          echo "🚀 ML PIPELINE STARTED"
           echo "========================================"
 
           python pipeline/run_pipeline.py
 
           echo "========================================"
-          echo "ML PIPELINE COMPLETED"
+          echo "✅ ML PIPELINE COMPLETED"
           echo "========================================"
 
       - name: Send Success Email
@@ -87,6 +87,8 @@ jobs:
             ✅ Generated User Recommendations
 
             ✅ Stored Results in Recommendation Database
+
+            ✅ Recommendations UPSERTED Successfully
 
             ✅ Pipeline Completed Successfully
 
