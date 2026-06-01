@@ -1,0 +1,70 @@
+name: 🚀 ML Recommendation Pipeline
+
+on:
+workflow_dispatch:
+
+schedule:
+- cron: '30 21 * * *'
+
+jobs:
+
+recommendation-pipeline:
+
+```
+runs-on: ubuntu-latest
+
+steps:
+
+  - name: 📦 Checkout Code
+    uses: actions/checkout@v4
+
+  - name: 🐍 Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
+
+  - name: 📚 Install Dependencies
+    run: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+
+  - name: 🚀 Run Recommendation Pipeline
+
+    env:
+      EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
+      PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
+      RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
+
+    run: |
+
+      echo "========================================"
+      echo "🚀 ML PIPELINE STARTED"
+      echo "========================================"
+
+      date
+
+      if [ -z "$EVENTS_DB_URL" ]; then
+        echo "❌ EVENTS_DB_URL missing"
+        exit 1
+      fi
+
+      if [ -z "$PRODUCT_DB_URL" ]; then
+        echo "❌ PRODUCT_DB_URL missing"
+        exit 1
+      fi
+
+      if [ -z "$RECO_DB_URL" ]; then
+        echo "❌ RECO_DB_URL missing"
+        exit 1
+      fi
+
+      echo "✅ All environment variables are set"
+
+      python pipeline/run_pipeline.py
+
+      echo "========================================"
+      echo "🎉 ML PIPELINE COMPLETED SUCCESSFULLY"
+      echo "========================================"
+
+      date
+```
