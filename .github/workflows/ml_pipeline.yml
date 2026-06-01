@@ -38,6 +38,9 @@ steps:
       EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
       PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
       RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      MAIL_CC: ${{ secrets.MAIL_CC }}
 
     run: |
       echo "========================================"
@@ -49,52 +52,4 @@ steps:
       echo "========================================"
       echo "🎉 ML PIPELINE COMPLETED"
       echo "========================================"
-
-  - name: 📧 Send Success Email
-    if: success()
-    uses: dawidd6/action-send-mail@v3
-    with:
-      server_address: smtp.gmail.com
-      server_port: 465
-      secure: true
-      username: ${{ secrets.MAIL_USERNAME }}
-      password: ${{ secrets.MAIL_PASSWORD }}
-      subject: ML Pipeline Success
-      to: ${{ secrets.MAIL_TO }}
-      cc: ${{ secrets.MAIL_CC }}
-      from: GitHub Actions
-      body: |
-        ML Recommendation Pipeline Completed Successfully
-
-        Repository: ${{ github.repository }}
-        Branch: ${{ github.ref_name }}
-        Commit: ${{ github.sha }}
-        Trigger: ${{ github.event_name }}
-
-        Run URL:
-        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-  - name: 📧 Send Failure Email
-    if: failure()
-    uses: dawidd6/action-send-mail@v3
-    with:
-      server_address: smtp.gmail.com
-      server_port: 465
-      secure: true
-      username: ${{ secrets.MAIL_USERNAME }}
-      password: ${{ secrets.MAIL_PASSWORD }}
-      subject: ML Pipeline Failed
-      to: ${{ secrets.MAIL_TO }}
-      cc: ${{ secrets.MAIL_CC }}
-      from: GitHub Actions
-      body: |
-        ML Recommendation Pipeline Failed
-
-        Repository: ${{ github.repository }}
-        Branch: ${{ github.ref_name }}
-        Commit: ${{ github.sha }}
-        Trigger: ${{ github.event_name }}
-
-        Run URL:
-        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 ```
