@@ -1,0 +1,42 @@
+name: Email Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  send-email:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Send Test Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+
+          subject: "✅ GitHub Actions Email Test"
+
+          to: ${{ secrets.MAIL_TO }}
+          cc: ${{ secrets.MAIL_CC }}
+
+          from: GitHub Actions
+
+          body: |
+            Hello,
+
+            This is a test email from GitHub Actions.
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Trigger: ${{ github.event_name }}
+
+            If you received this email, SMTP configuration is working successfully.
+
+            Regards,
+            GitHub Actions
