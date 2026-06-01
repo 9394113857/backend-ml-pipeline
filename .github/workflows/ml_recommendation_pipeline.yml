@@ -1,0 +1,162 @@
+name: 🚀 ML Recommendation Pipeline
+
+on:
+workflow_dispatch:
+
+schedule:
+- cron: '30 21 * * *'
+
+jobs:
+recommendation-pipeline:
+
+```
+runs-on: ubuntu-latest
+
+steps:
+
+  - name: 📦 Checkout Code
+    uses: actions/checkout@v4
+
+  - name: 🐍 Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
+
+  - name: 📚 Install Dependencies
+    run: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+
+  - name: 🔧 Set Metadata
+    run: |
+      echo "COMMIT=${GITHUB_SHA}" >> $GITHUB_ENV
+      echo "BRANCH=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+      echo "RUN_NUMBER=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+
+      echo "UTC_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+      echo "IST_TIME=$(TZ='Asia/Kolkata' date +'%Y-%m-%d %H:%M:%S IST')" >> $GITHUB_ENV
+
+      if [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+        echo "TRIGGER_TYPE=DAILY SCHEDULED RUN" >> $GITHUB_ENV
+      else
+        echo "TRIGGER_TYPE=MANUAL RUN" >> $GITHUB_ENV
+      fi
+
+  - name: 🚀 Run Recommendation Pipeline
+    env:
+      EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
+      PRODUCT_DB_URL: ${{ secrets.PRODUCT_DB_URL }}
+      RECO_DB_URL: ${{ secrets.RECO_DB_URL }}
+
+    run: |
+
+      echo "========================================"
+      echo "🚀 ML PIPELINE STARTED"
+      echo "========================================"
+
+      if [ -z "$EVENTS_DB_URL" ]; then
+        echo "❌ EVENTS_DB_URL missing"
+        exit 1
+      fi
+
+      if [ -z "$PRODUCT_DB_URL" ]; then
+        echo "❌ PRODUCT_DB_URL missing"
+        exit 1
+      fi
+
+      if [ -z "$RECO_DB_URL" ]; then
+        echo "❌ RECO_DB_URL missing"
+        exit 1
+      fi
+
+      echo "✅ All environment variables are set"
+
+      python pipeline/run_pipeline.py
+
+      echo "========================================"
+      echo "🎉 ML PIPELINE COMPLETED SUCCESSFULLY"
+      echo "========================================"
+
+  - name: 📧 Send Success Email
+    if: success()
+    uses: dawidd6/action-send-mail@v3
+    with:
+      server_address: smtp.gmail.com
+      server_port: 465
+      secure: true
+
+      username: ${{ secrets.MAIL_USERNAME }}
+      password: ${{ secrets.MAIL_PASSWORD }}
+
+      subject: "✅ ML PIPELINE SUCCESS | Run #${{ env.RUN_NUMBER }}"
+
+      to: ${{ secrets.MAIL_TO }}
+      cc: ${{ secrets.MAIL_CC }}
+
+      from: GitHub Actions ML Pipeline
+
+      body: |
+        🚀 ML RECOMMENDATION PIPELINE SUCCESS
+
+        Status: SUCCESS
+
+        Trigger:
+        ${{ env.TRIGGER_TYPE }}
+
+        Run Number:
+        ${{ env.RUN_NUMBER }}
+
+        Branch:
+        ${{ env.BRANCH }}
+
+        Commit:
+        ${{ env.COMMIT }}
+
+        UTC:
+        ${{ env.UTC_TIME }}
+
+        IST:
+        ${{ env.IST_TIME }}
+
+        GitHub Run:
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  - name: 📧 Send Failure Email
+    if: failure()
+    uses: dawidd6/action-send-mail@v3
+    with:
+      server_address: smtp.gmail.com
+      server_port: 465
+      secure: true
+
+      username: ${{ secrets.MAIL_USERNAME }}
+      password: ${{ secrets.MAIL_PASSWORD }}
+
+      subject: "❌ ML PIPELINE FAILED | Run #${{ env.RUN_NUMBER }}"
+
+      to: ${{ secrets.MAIL_TO }}
+      cc: ${{ secrets.MAIL_CC }}
+
+      from: GitHub Actions ML Pipeline
+
+      body: |
+        ❌ ML RECOMMENDATION PIPELINE FAILED
+
+        Trigger:
+        ${{ env.TRIGGER_TYPE }}
+
+        Branch:
+        ${{ env.BRANCH }}
+
+        Commit:
+        ${{ env.COMMIT }}
+
+        UTC:
+        ${{ env.UTC_TIME }}
+
+        IST:
+        ${{ env.IST_TIME }}
+
+        GitHub Run:
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+```
