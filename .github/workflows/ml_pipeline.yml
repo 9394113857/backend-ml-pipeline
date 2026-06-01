@@ -18,23 +18,14 @@ runs-on: ubuntu-latest
 
 steps:
 
-  # ==========================================
-  # CHECKOUT
-  # ==========================================
   - name: 📦 Checkout code
     uses: actions/checkout@v4
 
-  # ==========================================
-  # PYTHON
-  # ==========================================
   - name: 🐍 Setup Python 3.11
     uses: actions/setup-python@v5
     with:
       python-version: "3.11"
 
-  # ==========================================
-  # INSTALL DEPENDENCIES
-  # ==========================================
   - name: 📚 Install dependencies
     run: |
       echo "Installing dependencies..."
@@ -42,9 +33,6 @@ steps:
       pip install -r requirements.txt
       echo "Dependencies installed"
 
-  # ==========================================
-  # RUN ML PIPELINE
-  # ==========================================
   - name: 🚀 Run ML Pipeline
     env:
       EVENTS_DB_URL: ${{ secrets.EVENTS_DB_URL }}
@@ -62,13 +50,9 @@ steps:
       echo "🎉 ML PIPELINE COMPLETED"
       echo "========================================"
 
-  # ==========================================
-  # SUCCESS EMAIL
-  # ==========================================
   - name: 📧 Send Success Email
     if: success()
     uses: dawidd6/action-send-mail@v3
-
     with:
       server_address: smtp.gmail.com
       server_port: 465
@@ -87,28 +71,17 @@ steps:
       body: |
         🚀 ML Recommendation Pipeline Completed Successfully
 
-        Repository:
-        ${{ github.repository }}
-
-        Branch:
-        ${{ github.ref_name }}
-
-        Commit:
-        ${{ github.sha }}
-
-        Trigger:
-        ${{ github.event_name }}
+        Repository: ${{ github.repository }}
+        Branch: ${{ github.ref_name }}
+        Commit: ${{ github.sha }}
+        Trigger: ${{ github.event_name }}
 
         Run URL:
         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-  # ==========================================
-  # FAILURE EMAIL
-  # ==========================================
   - name: 📧 Send Failure Email
     if: failure()
     uses: dawidd6/action-send-mail@v3
-
     with:
       server_address: smtp.gmail.com
       server_port: 465
@@ -127,17 +100,10 @@ steps:
       body: |
         ❌ ML Recommendation Pipeline Failed
 
-        Repository:
-        ${{ github.repository }}
-
-        Branch:
-        ${{ github.ref_name }}
-
-        Commit:
-        ${{ github.sha }}
-
-        Trigger:
-        ${{ github.event_name }}
+        Repository: ${{ github.repository }}
+        Branch: ${{ github.ref_name }}
+        Commit: ${{ github.sha }}
+        Trigger: ${{ github.event_name }}
 
         Run URL:
         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
